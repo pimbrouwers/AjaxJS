@@ -1,6 +1,7 @@
 /*
 	Ajax JS 0.0.1
-	license: MIT	
+    Author: Pim Brouwers
+	License: MIT	
 */
 (function (root, factory) {
     if (typeof define === "function" && define.amd) {
