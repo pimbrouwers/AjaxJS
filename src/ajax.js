@@ -57,24 +57,28 @@
                 crossDomain: true,
                 timeout: 30000
             })
-            .done(function (result, textStatus, jqXHR) {
-                if (callback != undefined && $.isFunction(callback)) {
-                    callback(result, textStatus, jqXHR);
-                }
 
-            })
-            .fail(function (err, status, errorMessage) {
-                console.warn(err, errorMessage);
+            if(callback || errorCallback || alwaysCallback) {
+                promise.done(function (result, textStatus, jqXHR) {
+                    if (callback != undefined && $.isFunction(callback)) {
+                        callback(result, textStatus, jqXHR);
+                    }
 
-                if (errorCallback != undefined && $.isFunction(errorCallback)) {
-                    errorCallback(err, status, errorMessage);
-                }
-            })
-            .always(function () {
-                if (alwaysCallback != undefined && $.isFunction(alwaysCallback)) {
-                    alwaysCallback();
-                }
-            });
+                })
+                .fail(function (err, status, errorMessage) {
+                    console.warn(err, errorMessage);
+
+                    if (errorCallback != undefined && $.isFunction(errorCallback)) {
+                        errorCallback(err, status, errorMessage);
+                    }
+                })
+                .always(function () {
+                    if (alwaysCallback != undefined && $.isFunction(alwaysCallback)) {
+                        alwaysCallback();
+                    }
+                });
+            }
+            
 
             if (cacheKey) cache[cacheKey] = promise;
         }
@@ -87,33 +91,9 @@
     ///
     Ajax.prototype.post = function (cacheKey, url, data, callback, errorCallback, alwaysCallback) {
         var self = this,
-            promise = self.BuildPromise(cacheKey, url, data, callback, errorCallback, alwaysCallback);
+            promise = self.BuildPromise(cacheKey, url, data);
 
-        self.execute(promise);
-    };
-
-    ///
-    //XHR Post Multiple Wrapper
-    ///
-    Ajax.prototype.postMultiple = function (requestArray, callback, errorCallback, alwaysCallback) {
-        var self = this,
-            cache = self._deferredCache,
-            promises = [];
-
-        for (var i = 0; i < requestArray.length; i++) {
-            var req = requestArray[i];
-
-            promises.push(self.BuildPromise(req.cacheKey, req.url, req.data, req.callback, req.errorCallback, req.alwaysCallback));
-        }
-        
-        self.execute(promises, callback, errorCallback, alwaysCallback);
-    };
-
-    ///
-    //Execute XHR
-    ///
-    Ajax.prototype.execute = function (promises, callback, errorCallback, alwaysCallback) {
-        $.when.apply($, promises)
+        $.when(promise)
             .then(function (result, textStatus, jqXHR) {
                 if (callback != undefined && $.isFunction(callback)) {
                     callback();
@@ -133,6 +113,39 @@
             });
     };
 
+    ///
+    //XHR Post Multiple Wrapper
+    ///
+    Ajax.prototype.postMultiple = function (requestArray, callback, errorCallback, alwaysCallback) {
+        var self = this,
+            cache = self._deferredCache,
+            promises = [];
+
+        for (var i = 0; i < requestArray.length; i++) {
+            var req = requestArray[i];
+
+            promises.push(self.BuildPromise(req.cacheKey, req.url, req.data, req.callback, req.errorCallback, req.alwaysCallback));
+        }
+        
+        $.when.apply($, promises)
+            .then(function (result, textStatus, jqXHR) {
+                if (callback != undefined && $.isFunction(callback)) {
+                    callback();
+                }
+            })
+            .fail(function (err, status, errorMessage) {
+                console.warn(err, errorMessage);
+
+                if (errorCallback != undefined && $.isFunction(errorCallback)) {
+                    errorCallback(err, status, errorMessage);
+                }
+            })
+            .always(function () {
+                if (alwaysCallback != undefined && $.isFunction(alwaysCallback)) {
+                    alwaysCallback();
+                }
+            });
+    };
 
     return new Ajax()
 }));
