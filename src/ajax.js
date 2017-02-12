@@ -17,7 +17,12 @@
 
         self._deferredCache = {};
 
+        self._config = {
+            timeout: 30000            
+        };
+
         self.Post = self.post;
+        self.PostCORS = self.postCORS;
         self.PostMultiple = self.postMultiple;
     };
 
@@ -35,9 +40,9 @@
     };
 
     ///
-    //Build Promise w/ CORS
+    //Build Promise 
     ///
-    Ajax.prototype.BuildPromise = function (cacheKey, url, headers, data, callback, errorCallback, alwaysCallback) {
+    Ajax.prototype.BuildPromise = function (cacheKey, url, data, crossDomain, headers, callback, errorCallback, alwaysCallback) {
         var self = this,
             cache = self._deferredCache,
             promise = null;
@@ -46,7 +51,6 @@
         // or create a new one (a jqXHR object) and store it in the cache.
         if (cacheKey) promise = cache[cacheKey];
         if (!promise) {
-
             var headers = headers || {};
 
             promise = $.ajax(url, {
@@ -54,8 +58,8 @@
                 dataType: 'json',
                 method: 'POST',
                 headers: headers,
-                crossDomain: true,
-                timeout: 30000
+                crossDomain: crossDomain || false,
+                timeout: self._config.timeout
             })
 
             if(callback || errorCallback || alwaysCallback) {
@@ -89,9 +93,36 @@
     ///
     //XHR Post Wrapper
     ///
-    Ajax.prototype.post = function (cacheKey, url, data, callback, errorCallback, alwaysCallback) {
+    Ajax.prototype.post = function (cacheKey, url, data, headers, callback, errorCallback, alwaysCallback) {
         var self = this,
-            promise = self.BuildPromise(cacheKey, url, data);
+            promise = self.BuildPromise(cacheKey, url, data, headers, false);
+
+        $.when(promise)
+            .then(function (result, textStatus, jqXHR) {
+                if (callback != undefined && $.isFunction(callback)) {
+                    callback();
+                }
+            })
+            .fail(function (err, status, errorMessage) {
+                console.warn(err, errorMessage);
+
+                if (errorCallback != undefined && $.isFunction(errorCallback)) {
+                    errorCallback(err, status, errorMessage);
+                }
+            })
+            .always(function () {
+                if (alwaysCallback != undefined && $.isFunction(alwaysCallback)) {
+                    alwaysCallback();
+                }
+            });
+    };
+
+    ///
+    //XHR Post Wrapper
+    ///
+    Ajax.prototype.postCORS = function (cacheKey, url, data, headers, callback, errorCallback, alwaysCallback) {
+        var self = this,
+            promise = self.BuildPromise(cacheKey, url, data, headers, true);
 
         $.when(promise)
             .then(function (result, textStatus, jqXHR) {
@@ -124,7 +155,7 @@
         for (var i = 0; i < requestArray.length; i++) {
             var req = requestArray[i];
 
-            promises.push(self.BuildPromise(req.cacheKey, req.url, req.data, req.callback, req.errorCallback, req.alwaysCallback));
+            promises.push(self.BuildPromise(req.cacheKey, req.url, req.data, req.headers, req.crossDomain, req.callback, req.errorCallback, req.alwaysCallback));
         }
         
         $.when.apply($, promises)
